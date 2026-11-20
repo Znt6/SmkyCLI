@@ -37,7 +37,7 @@ class Program
         // 主循环
         while (!state.ExitRequested)
         {
-            Tool.PrintColor("\nuser -> ", Color.FromArgb(unchecked((int)0xFFCC99FF)));
+            Tool.PrintColor("\nuser -> ", Color.FromArgb(unchecked((int)0xFF9999FF)));
             string? input = Console.ReadLine();
             if (input is null) break;
 
