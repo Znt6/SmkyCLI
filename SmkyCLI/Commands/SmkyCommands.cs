@@ -3,6 +3,9 @@ using System.Globalization;
 
 namespace SmkyCLI;
 
+// TODO: 摘要失败会阻断对话
+// TODO: 流式输出没有超时保护
+
 /// <summary>REPL 命令运行状态：主循环与命令回调共享（闭包无法捕获 ref 局部变量，改用对象承载）。</summary>
 public class CommandState
 {
@@ -49,15 +52,14 @@ public static class SmkyCommands
         Argument<double> temperatureArg = new Argument<double>("value") { Description = "0.0-1.0" };
         temperatureArg.Validators.Add(r =>
         {
-            // 先 TryParse 再校验范围：类型/缺参错误由库自行报告，避免 GetValueOrDefault 在转换失败时抛异常
             if (r.Tokens.Count > 0 &&
                 double.TryParse(r.Tokens[0].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) &&
-                v is < 0.0 or > 1.0)
-                r.AddError("温度必须在 0.0 到 1.0 之间");
+                (!double.IsFinite(v) || v is < 0.0 or > 1.0))
+                r.AddError("模型温度应该处于[0.0..1.0]区间内且不能是NAN或INF");
         });
         Command setTemperature = new Command("set-temperature", "临时设置模型温度");
         setTemperature.Add(temperatureArg);
-        setTemperature.SetAction(r => config.Temperature = r.GetValue(temperatureArg));
+        setTemperature.SetAction(r => { config.Temperature = r.GetValue(temperatureArg); });
         root.Add(setTemperature);
 
         Command clearContext = new Command("clear-context", "清除上下文关系(缓存会失效)");

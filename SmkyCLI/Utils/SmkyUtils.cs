@@ -36,6 +36,8 @@ public static class SmkyUtils
             File.WriteAllText(path, JsonSerializer.Serialize(template, IndentedOptions.GetTypeInfo(typeof(SmkyConfig))));
             Console.WriteLine($"smkyconfig配置文件不存在，已从默认模板创建，位置为：{Path.GetFullPath(path)}");
             Console.WriteLine("请填写 APIKey 后重新运行");
+            Console.WriteLine("按下回车后继续");
+            Console.ReadLine();
             return null;
         }
 
@@ -52,9 +54,34 @@ public static class SmkyUtils
 
         if (config is null || string.IsNullOrWhiteSpace(config.APIKey) || config.APIKey == ApiKeyPlaceholder)
         {
-            Console.WriteLine($"请先在配置文件中填写有效的 APIKey：{Path.GetFullPath(path)}");
+            Console.WriteLine($"请先在配置文件中填写有效的 api_key：{Path.GetFullPath(path)}");
             return null;
         }
+        
+        if (String.IsNullOrEmpty(config.BaseURL))
+        {
+            Console.WriteLine($"配置文件中的BaseURL似乎无效 base_url：{Path.GetFullPath(path)}");
+            return null;
+        }
+        
+        if (String.IsNullOrEmpty(config.Model))
+        {
+            Console.WriteLine($"配置文件中的模型名称似乎无效 model：{Path.GetFullPath(path)}");
+            return null;
+        }
+
+        if (config.LogitBias is null)
+        {
+            config.LogitBias = new Dictionary<string, int>();
+            Console.WriteLine($"logit_bias不可为null，已初始化为默认值 logit_bias：{Path.GetFullPath(path)}");
+        }
+
+        if (!double.IsFinite(config.Temperature) || config.Temperature < 0 || config.Temperature > 1)
+        {
+            Console.WriteLine($"temperature的值似乎无效,请输入位于区间[0.0..1.0]且不为NaN或者INF的值 temperature：{Path.GetFullPath(path)}");
+            return null;
+        }
+        
         return config;
     }
 
@@ -101,7 +128,7 @@ public static class SmkyUtils
         Temperature = config.Temperature,
         TopP = config.TopP,
         EnableSearch = config.EnableSearch,
-        LogitBias = config.LogitBias.Count > 0 ? config.LogitBias : null
+        LogitBias = config.LogitBias?.Count > 0 ? config.LogitBias : null
     };
 
     /// <summary>流式打印回复：增量片段到达即输出（打字机效果）；请求异常时打印错误、不中断调用方循环。</summary>

@@ -67,7 +67,9 @@ class Program
 
             // token用量输出
             if (state.IsShowToken && chat.LastUsage is { } usage)
-                Tool.PrintColorLine($"[总计: {usage.TotalTokens}] >> [输入: {usage.PromptTokens}] >> [输出: {usage.CompletionTokens}] >> [命中: {usage.PromptTokensDetails.CachedTokens}]"
+                Tool.PrintColorLine($"[总计: {usage.TotalTokens}] >> [输入: {usage.PromptTokens}] >> " +
+                                    $"[输出: {usage.CompletionTokens}] >> " +
+                                    $"[命中: {usage.PromptTokensDetails?.CachedTokens.ToString() ?? "服务端未返回"}]"
                     ,  Color.FromArgb(unchecked((int)0xFF666666)));
 
             #endregion
