@@ -56,7 +56,7 @@ public partial class SmkyJsonContext : JsonSerializerContext
 /// <summary>Chat Completions 请求体（POST chat/completions）。</summary>
 public sealed class ChatRequest
 {
-    /// <summary>模型名（必填）。如 qwen-plus-character / qwen-flash-character / qwen-flash-character-2026-02-26。</summary>
+    /// <summary>模型名（必填）。Qwen-Flash-Character 使用 deepseek-flash，其他模型填写各自服务商的模型 ID。</summary>
     public required string Model { get; set; }
 
     /// <summary>对话消息列表（必填）。第一个元素必须是 system 消息（角色设定）；多轮对话按顺序追加历史。</summary>

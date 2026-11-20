@@ -6,7 +6,7 @@ public class SmkyConfig
     public required string BaseURL { get; set; }
     /// <summary>API密钥</summary>
     public required string APIKey { get; set; }
-    /// <summary>模型名称</summary>
+    /// <summary>模型 ID；deepseek-flash 使用千问角色扩展，其他模型使用标准 OpenAI API 兼容模式</summary>
     public required string Model { get; set; }
     /// <summary>最大生成token数量</summary>
     public int MaxTokens { get; set; } = 1024;

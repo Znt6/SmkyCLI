@@ -6,6 +6,9 @@ namespace SmkyUi;
 
 public class SmkyChat : IDisposable
 {
+    /// <summary>Qwen-Flash-Character 的模型 ID；仅该模型启用千问角色扮演扩展参数。</summary>
+    private const string QwenFlashCharacterModel = "deepseek-flash";
+
     private SmkyConfig _appConfig;
     private CharacterConfig _characterConfig;
     private ChatRequest _chatRequest;
@@ -125,22 +128,26 @@ public class SmkyChat : IDisposable
         }
         messages.Add(userMsg);
 
+        var isQwenFlashCharacter = IsQwenFlashCharacter;
         // 应用配置参数：与配置文件共有的字段一律以配置文件为准（全量覆盖请求模板），仅 N/Seed 沿用请求模板
         var request = new ChatRequest
         {
             Model = _appConfig.Model,
-            // 最后一条消息打 cache_control：从开头到此处形成显式缓存块，下一轮命中前缀缓存
-            Messages = messages.Select((m, i) => i == messages.Count - 1 ? m.WithCacheControl() : m).ToList(),
+            // 千问角色模型为最后一条消息打显式缓存标记；标准 OpenAI 模式不携带 cache_control
+            Messages = isQwenFlashCharacter
+                ? messages.Select((m, i) => i == messages.Count - 1 ? m.WithCacheControl() : m).ToList()
+                : messages,
             MaxTokens = _appConfig.MaxTokens,
             Temperature = _appConfig.Temperature,
             TopP = _appConfig.TopP,
-            EnableSearch = _appConfig.EnableSearch,
+            // enable_search 是千问扩展字段，其他兼容服务仅接收标准 OpenAI 参数
+            EnableSearch = isQwenFlashCharacter ? _appConfig.EnableSearch : null,
             N = _chatRequest.N,
             Seed = _chatRequest.Seed,
             LogitBias = _appConfig.LogitBias.Count > 0 ? _appConfig.LogitBias : null
         };
-        // 启用真实时间时，人设内容需从 system 消息迁移到 character_options.profile
-        if (_characterConfig.EnableRealtime)
+        // 千问角色模型启用真实时间时，人设内容需从 system 消息迁移到 character_options.profile
+        if (isQwenFlashCharacter && _characterConfig.EnableRealtime)
             request.CharacterOptions = new CharacterOptions
             {
                 Profile = _systemPrompt ??= _characterConfig.BuildSystemPrompt(),
@@ -199,7 +206,7 @@ public class SmkyChat : IDisposable
             ],
             MaxTokens = Math.Min(_appConfig.MaxTokens, 512),
             Temperature = 0.2,
-            EnableSearch = false
+            EnableSearch = IsQwenFlashCharacter ? false : null
         };
 
         using var body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
@@ -226,17 +233,21 @@ public class SmkyChat : IDisposable
         _userTurnTimes.Add(now);
     }
 
-    /// <summary>构建并缓存 system 消息，启用真实时间时人设已迁移到 character_options</summary>
+    /// <summary>构建并缓存 system 消息，千问角色模型启用真实时间时人设已迁移到 character_options</summary>
     private ChatMessage GetSystemMessage()
     {
         if (_systemMessage is not null) return _systemMessage;
         _systemPrompt ??= _characterConfig.BuildSystemPrompt();
-        _systemMessage = ChatMessage.System(_characterConfig.EnableRealtime
+        _systemMessage = ChatMessage.System(IsQwenFlashCharacter && _characterConfig.EnableRealtime
             ? "请严格按照角色设定进行对话。"
             : _systemPrompt);
         return _systemMessage;
     }
-    
+
+    /// <summary>千问角色模型走专属扩展，其余模型统一走标准 OpenAI API 兼容模式。</summary>
+    private bool IsQwenFlashCharacter =>
+        string.Equals(_appConfig.Model, QwenFlashCharacterModel, StringComparison.OrdinalIgnoreCase);
+
     private bool ShouldInsertRealityReminder(DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(_characterConfig.RealityReminder)) return false;

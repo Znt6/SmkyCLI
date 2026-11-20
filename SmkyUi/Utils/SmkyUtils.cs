@@ -31,7 +31,7 @@ public static class SmkyUtils
             {
                 BaseURL = "https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1",
                 APIKey = ApiKeyPlaceholder,
-                Model = "qwen-flash-character"
+                Model = "deepseek-flash"
             };
             File.WriteAllText(path, JsonSerializer.Serialize(template, IndentedOptions.GetTypeInfo(typeof(SmkyConfig))));
             Console.WriteLine($"smkyconfig配置文件不存在，已从默认模板创建，位置为：{Path.GetFullPath(path)}");
