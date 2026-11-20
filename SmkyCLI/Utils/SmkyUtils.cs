@@ -1,7 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
-namespace SmkyUi;
+namespace SmkyCLI;
 
 /// <summary>通用工具函数：应用/角色配置加载、请求模板构建、流式与非流式回复打印。</summary>
 public static class SmkyUtils
@@ -27,11 +27,11 @@ public static class SmkyUtils
     {
         if (!File.Exists(path))
         {
-            var template = new SmkyConfig
+            SmkyConfig template = new SmkyConfig
             {
                 BaseURL = "https://cn-beijing.maas.qianwenaiapi.com/compatible-mode/v1",
                 APIKey = ApiKeyPlaceholder,
-                Model = "deepseek-flash"
+                Model = "qwen-flash-character"
             };
             File.WriteAllText(path, JsonSerializer.Serialize(template, IndentedOptions.GetTypeInfo(typeof(SmkyConfig))));
             Console.WriteLine($"smkyconfig配置文件不存在，已从默认模板创建，位置为：{Path.GetFullPath(path)}");
@@ -66,7 +66,7 @@ public static class SmkyUtils
     {
         if (!File.Exists(path))
         {
-            var template = new CharacterConfig { Profile = DefaultProfile };
+            CharacterConfig template = new CharacterConfig { Profile = DefaultProfile };
             File.WriteAllText(path, JsonSerializer.Serialize(template, IndentedOptions.GetTypeInfo(typeof(CharacterConfig))));
             Console.WriteLine($"角色配置文件不存在，已生成默认模板：{Path.GetFullPath(path)}，可随时编辑自定义角色");
             return template;
@@ -74,7 +74,7 @@ public static class SmkyUtils
 
         try
         {
-            var character = CharacterConfig.FromJson(File.ReadAllText(path));
+            CharacterConfig? character = CharacterConfig.FromJson(File.ReadAllText(path));
             if (character is null)
             {
                 Console.WriteLine($"角色配置文件内容为空：{Path.GetFullPath(path)}");
@@ -109,8 +109,8 @@ public static class SmkyUtils
     {
         try
         {
-            var any = false;
-            await foreach (var delta in chat.SendMessageToModelStreamAsync(input, cancellationToken))
+            bool any = false;
+            await foreach (string delta in chat.SendMessageToModelStreamAsync(input, cancellationToken))
             {
                 any = true;
                 Console.Write(delta);
@@ -128,7 +128,7 @@ public static class SmkyUtils
     {
         try
         {
-            var reply = await chat.SendMessageToModelAsync(input);
+            string? reply = await chat.SendMessageToModelAsync(input);
             Console.WriteLine(reply ?? "(模型未回复)");
         }
         catch (Exception ex)

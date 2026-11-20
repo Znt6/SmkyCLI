@@ -1,7 +1,13 @@
 bin/
 obj/
 .idea/
+.vs/
 *.DotSettings.user
+*.user
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+
+# 运行时配置文件含 API Key，不提交（模板见 SmkyCLI/Configs/smkyconfig.json）
+/SmkyCLI/smkyconfig.json
+/smkyconfig.json

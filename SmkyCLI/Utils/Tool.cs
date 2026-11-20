@@ -1,7 +1,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 
-namespace SmkyUi;
+namespace SmkyCLI;
 
 /// <summary>通用静态工具类：存放与业务无关的小工具函数（控制台彩色打印等）。</summary>
 public static class Tool
@@ -12,8 +12,8 @@ public static class Tool
     /// <param name="background">背景色，null 表示保持当前背景色</param>
     public static void PrintColor(string text, ConsoleColor foreground, ConsoleColor? background = null)
     {
-        var oldForeground = Console.ForegroundColor;
-        var oldBackground = Console.BackgroundColor;
+        ConsoleColor oldForeground = Console.ForegroundColor;
+        ConsoleColor oldBackground = Console.BackgroundColor;
         try
         {
             Console.ForegroundColor = foreground;
@@ -41,10 +41,10 @@ public static class Tool
     public static void PrintColor(string text, Color foreground, Color? background = null)
     {
         EnsureVtEnabled();
-        var prefix = $"\x1b[38;2;{foreground.R};{foreground.G};{foreground.B}m";
+        string prefix = $"\x1b[38;2;{foreground.R};{foreground.G};{foreground.B}m";
         if (background.HasValue)
         {
-            var bg = background.Value;
+            Color bg = background.Value;
             prefix += $"\x1b[48;2;{bg.R};{bg.G};{bg.B}m";
         }
         Console.Write(prefix + text + "\x1b[0m");

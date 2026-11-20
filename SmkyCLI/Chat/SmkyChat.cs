@@ -2,12 +2,12 @@ using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace SmkyUi;
+namespace SmkyCLI;
 
 public class SmkyChat : IDisposable
 {
     /// <summary>Qwen-Flash-Character 的模型 ID；仅该模型启用千问角色扮演扩展参数。</summary>
-    private const string QwenFlashCharacterModel = "deepseek-flash";
+    public const string QwenFlashCharacterModel = "qwen-flash-character";
 
     private SmkyConfig _appConfig;
     private CharacterConfig _characterConfig;
@@ -46,16 +46,16 @@ public class SmkyChat : IDisposable
 
         LastUsage = null;
         await CompactHistoryIfFullAsync();
-        var now = DateTimeOffset.Now;
-        var (request, userMsg) = BuildRequest(message, now);
+        DateTimeOffset now = DateTimeOffset.Now;
+        (ChatRequest request, ChatMessage userMsg) = BuildRequest(message, now);
 
-        using var body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
-        using var resp = await GetHttpClient().PostAsync("chat/completions", body);
+        using StringContent body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
+        using HttpResponseMessage resp = await GetHttpClient().PostAsync("chat/completions", body);
         resp.EnsureSuccessStatusCode();
 
-        var result = ChatResponse.FromJson(await resp.Content.ReadAsStringAsync())
+        ChatResponse result = ChatResponse.FromJson(await resp.Content.ReadAsStringAsync())
                      ?? throw new InvalidOperationException("响应反序列化失败");
-        var reply = result.FirstText;
+        string? reply = result.FirstText;
         LastUsage = result.Usage;
 
         // 请求成功后才把本轮 user / assistant 并入历史，供下一轮复用缓存前缀
@@ -77,32 +77,32 @@ public class SmkyChat : IDisposable
 
         LastUsage = null;
         await CompactHistoryIfFullAsync(cancellationToken);
-        var now = DateTimeOffset.Now;
-        var (request, userMsg) = BuildRequest(message, now);
+        DateTimeOffset now = DateTimeOffset.Now;
+        (ChatRequest request, ChatMessage userMsg) = BuildRequest(message, now);
         request.Stream = true;
         // 让最后一块携带 usage，便于观察缓存命中与 Token 消耗
         request.StreamOptions = new StreamOptions { IncludeUsage = true };
 
-        using var body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions") { Content = body };
+        using StringContent body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
+        using HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions") { Content = body };
         // ResponseHeadersRead：响应头到达时返回
-        using var resp = await GetHttpClient().SendAsync(httpRequest,
+        using HttpResponseMessage resp = await GetHttpClient().SendAsync(httpRequest,
             HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         resp.EnsureSuccessStatusCode();
 
-        var reply = new StringBuilder();
-        await using var stream = await resp.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
+        StringBuilder reply = new StringBuilder();
+        await using Stream stream = await resp.Content.ReadAsStreamAsync(cancellationToken);
+        using StreamReader reader = new StreamReader(stream);
         while (await reader.ReadLineAsync(cancellationToken) is { } line)
         {
             // SSE 格式：只处理 data: 行，忽略空行与 event/id 等字段行
             if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;
-            var payload = line["data:".Length..].Trim();
+            string payload = line["data:".Length..].Trim();
             if (payload == "[DONE]") break; // 流结束标记
 
-            var chunk = ChatStreamChunk.FromJson(payload);
+            ChatStreamChunk? chunk = ChatStreamChunk.FromJson(payload);
             if (chunk?.Usage is { } usage) LastUsage = usage; // 用量块：记录 Token 消耗与缓存命中
-            var delta = chunk?.FirstDeltaText;
+            string? delta = chunk?.FirstDeltaText;
             if (string.IsNullOrEmpty(delta)) continue; // 角色块/结束块/用量块无文本
             reply.Append(delta);
             yield return delta;
@@ -116,10 +116,10 @@ public class SmkyChat : IDisposable
     private (ChatRequest Request, ChatMessage UserMsg) BuildRequest(string message, DateTimeOffset now)
     {
         _sessionStart ??= now;
-        var userMsg = ChatMessage.User(message);
+        ChatMessage userMsg = ChatMessage.User(message);
 
         // 提醒只加入本次请求、不写入历史，且放在最后一条 user 消息之前，尽量保住前缀缓存
-        var messages = new List<ChatMessage> { GetSystemMessage() };
+        List<ChatMessage> messages = new List<ChatMessage> { GetSystemMessage() };
         if (_appConfig.MaxHistoryMessages > 0) messages.AddRange(_history);
         if (ShouldInsertRealityReminder(now))
         {
@@ -128,9 +128,9 @@ public class SmkyChat : IDisposable
         }
         messages.Add(userMsg);
 
-        var isQwenFlashCharacter = IsQwenFlashCharacter;
+        bool isQwenFlashCharacter = IsQwenFlashCharacter;
         // 应用配置参数：与配置文件共有的字段一律以配置文件为准（全量覆盖请求模板），仅 N/Seed 沿用请求模板
-        var request = new ChatRequest
+        ChatRequest request = new ChatRequest
         {
             Model = _appConfig.Model,
             // 千问角色模型为最后一条消息打显式缓存标记；标准 OpenAI 模式不携带 cache_control
@@ -159,11 +159,11 @@ public class SmkyChat : IDisposable
     /// <summary>历史达到上限后，将最早的一半整理成摘要并保留近期原文，摘要失败时保留原历史。</summary>
     private async Task CompactHistoryIfFullAsync(CancellationToken cancellationToken = default)
     {
-        var maxHistory = _appConfig.MaxHistoryMessages;
+        int maxHistory = _appConfig.MaxHistoryMessages;
         if (maxHistory <= 0 || _history.Count < Math.Max(maxHistory, 2)) return;
 
         // 调低上限或上限过小时多选一些，确保替换摘要后不会继续超过上限。
-        var selectedCount = Math.Min(_history.Count,
+        int selectedCount = Math.Min(_history.Count,
             Math.Max(_history.Count / 2, _history.Count - maxHistory + 2));
         // 不能在一对对话中切开
         if (selectedCount < _history.Count &&
@@ -171,8 +171,8 @@ public class SmkyChat : IDisposable
             _history[selectedCount].Role == "assistant")
             selectedCount++;
 
-        var selected = _history.Take(selectedCount).ToList();
-        var summary = await CreateSummaryAsync(selected, cancellationToken);
+        List<ChatMessage> selected = _history.Take(selectedCount).ToList();
+        string? summary = await CreateSummaryAsync(selected, cancellationToken);
         if (string.IsNullOrWhiteSpace(summary))
             throw new InvalidOperationException("上下文摘要为空，未清理原历史");
 
@@ -183,10 +183,10 @@ public class SmkyChat : IDisposable
     /// <summary>使用独立请求整理选中的历史避免摘要过程递归触发上下文压缩。</summary>
     private async Task<string?> CreateSummaryAsync(List<ChatMessage> selected, CancellationToken cancellationToken)
     {
-        var transcript = new StringBuilder();
-        foreach (var message in selected)
+        StringBuilder transcript = new StringBuilder();
+        foreach (ChatMessage message in selected)
         {
-            var role = message.Role switch
+            string role = message.Role switch
             {
                 "user" => "用户",
                 "assistant" => "角色",
@@ -196,7 +196,7 @@ public class SmkyChat : IDisposable
             transcript.Append(role).Append("：").AppendLine(message.Content);
         }
 
-        var request = new ChatRequest
+        ChatRequest request = new ChatRequest
         {
             Model = _appConfig.Model,
             Messages =
@@ -209,10 +209,10 @@ public class SmkyChat : IDisposable
             EnableSearch = IsQwenFlashCharacter ? false : null
         };
 
-        using var body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
-        using var response = await GetHttpClient().PostAsync("chat/completions", body, cancellationToken);
+        using StringContent body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await GetHttpClient().PostAsync("chat/completions", body, cancellationToken);
         response.EnsureSuccessStatusCode();
-        var result = ChatResponse.FromJson(await response.Content.ReadAsStringAsync(cancellationToken))
+        ChatResponse result = ChatResponse.FromJson(await response.Content.ReadAsStringAsync(cancellationToken))
                      ?? throw new InvalidOperationException("上下文摘要响应反序列化失败");
         return result.FirstText;
     }
@@ -253,9 +253,9 @@ public class SmkyChat : IDisposable
         if (string.IsNullOrWhiteSpace(_characterConfig.RealityReminder)) return false;
         if (now - _lastReminderTime < TimeSpan.FromMinutes(30)) return false;
 
-        var longSession = _sessionStart is { } start && now - start >= TimeSpan.FromMinutes(30);
+        bool longSession = _sessionStart is { } start && now - start >= TimeSpan.FromMinutes(30);
         _userTurnTimes.RemoveAll(t => now - t > TimeSpan.FromMinutes(10));
-        var highFrequency = _userTurnTimes.Count >= 20;
+        bool highFrequency = _userTurnTimes.Count >= 20;
         return longSession || highFrequency;
     }
 

@@ -1,4 +1,4 @@
-namespace SmkyUi;
+namespace SmkyCLI;
 
 public class CharacterConfig
 {
@@ -29,7 +29,7 @@ public class CharacterConfig
     /// <summary>构建最终 system 消息：角色信息 + 自定义提示词 + 安全规则。</summary>
     public string BuildSystemPrompt()
     {
-        var parts = new List<string>();
+        List<string> parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(Name) || !string.IsNullOrWhiteSpace(Profile))
             parts.Add($"你扮演虚拟角色。姓名：{Name}，年龄：{Age}。简介：{Profile}。请始终保持角色身份对话。");
         if (!string.IsNullOrWhiteSpace(SystemPrompt))

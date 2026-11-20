@@ -2,18 +2,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
-namespace SmkyUi;
+namespace SmkyCLI;
 
-// ============================================================================
-// 千问角色扮演（Qwen-Character）OpenAI 兼容 Chat Completions API 的请求/响应封装
-// 文档: https://platform.qianwenai.com/docs/developer-guides/text-generation/role-playing
-// 端点: {base_url}/chat/completions （base_url 形如 https://maas.qianwenaiapi.com/compatible-mode/v1）
-// ============================================================================
-
-/// <summary>统一的 JSON 序列化入口：snake_case 命名 + 忽略 null，与兼容模式 API 的字段风格一致。</summary>
+/// <summary>JSON 序列化入口：snake_case 命名 + 忽略 null，与兼容模式 API 的字段风格一致。</summary>
 public static class CharacterJson
 {
-    /// <summary>全局序列化配置：属性名转 snake_case（如 MaxTokens → max_tokens），null 字段不输出；读取时跳过 // 注释。
+    /// <summary>全局序列化配置：属性名转 snake_case（如 MaxTokens → max_tokens），null 字段不输出；读取时跳过
     /// 元数据由 <see cref="SmkyJsonContext"/> 源生成提供，NativeAOT 下无需运行时反射。</summary>
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -23,16 +17,16 @@ public static class CharacterJson
         TypeInfoResolver = SmkyJsonContext.Default
     };
 
-    /// <summary>把任意请求/响应对象序列化为 API 兼容的 JSON 字符串。</summary>
+    /// <summary>把任意请求或响应对象序列化为API兼容的JSON字符串</summary>
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Options.GetTypeInfo(typeof(T)));
 
-    /// <summary>把 API 返回的 JSON 字符串反序列化为指定类型。</summary>
+    /// <summary>把API返回的 SON字符串反序列化为指定类型</summary>
     public static T? Deserialize<T>(string json) => (T?)JsonSerializer.Deserialize(json, Options.GetTypeInfo(typeof(T)));
 }
 
 /// <summary>
-/// System.Text.Json 源生成上下文：登记所有参与序列化的类型及其选项，
-/// 使 NativeAOT 发布不依赖反射（否则 AOT 下会因缺少元数据在运行时抛 NotSupportedException）。
+/// System.Text.Json源生成上下文：登记所有参与序列化的类型及其选项，
+/// 使 NativeAOT发布不依赖反射（否则 AOT 下会因缺少元数据在运行时抛 NotSupportedException）。
 /// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
@@ -56,53 +50,53 @@ public partial class SmkyJsonContext : JsonSerializerContext
 /// <summary>Chat Completions 请求体（POST chat/completions）。</summary>
 public sealed class ChatRequest
 {
-    /// <summary>模型名（必填）。Qwen-Flash-Character 使用 deepseek-flash，其他模型填写各自服务商的模型 ID。</summary>
+    /// <summary>模型名</summary>
     public required string Model { get; set; }
 
-    /// <summary>对话消息列表（必填）。第一个元素必须是 system 消息（角色设定）；多轮对话按顺序追加历史。</summary>
+    /// <summary>对话消息列表，第一个元素必须是 system 消息，多轮对话按顺序追加历史。</summary>
     public required List<ChatMessage> Messages { get; set; }
 
-    /// <summary>单次请求生成的回复条数，取值 1–4，默认 1。用于"多样化响应"。</summary>
+    /// <summary>单次请求生成的回复条数，取值 1–4，默认 1</summary>
     public int? N { get; set; }
 
-    /// <summary>随机数种子。换 seed 可"重新生成响应"；建议每次只调整 seed/top_p/temperature 中的一个。</summary>
+    /// <summary>随机数种子</summary>
     public int? Seed { get; set; }
 
-    /// <summary>核采样阈值 (0,1]，控制多样性；值越大回复越随机，默认由服务端决定。</summary>
+    /// <summary>核采样阈值 (0,1]</summary>
     public double? TopP { get; set; }
 
-    /// <summary>采样温度 [0,2)，控制随机性；值越大回复越发散，默认由服务端决定。</summary>
+    /// <summary>采样温度 [0,2)</summary>
     public double? Temperature { get; set; }
 
-    /// <summary>本次回复的最大输出 Token 数。qwen-flash-character-2026-02-26 默认 4096，可调至 32768。</summary>
+    /// <summary>本次回复的最大输出 Token 数</summary>
     public int? MaxTokens { get; set; }
 
-    /// <summary>Token 偏置表：Key 为 Token ID（字符串），Value 为 [-100,100] 的概率调整值。-100 表示完全禁止该 Token（如屏蔽括号动作描写）。</summary>
+    /// <summary>Token 偏置表</summary>
     public Dictionary<string, int>? LogitBias { get; set; }
 
-    /// <summary>是否启用联网搜索，默认 false。启用后模型基于实时检索数据回复（额外计费）。</summary>
+    /// <summary>是否启用联网搜索，默认 false</summary>
     public bool? EnableSearch { get; set; }
 
-    /// <summary>是否启用流式输出（SSE），默认 false。true 时服务端按 data: 块逐步返回 <see cref="ChatStreamChunk"/>。</summary>
+    /// <summary>是否启用流式输出（SSE），默认 false</summary>
     public bool? Stream { get; set; }
 
-    /// <summary>流式输出选项，仅在 stream=true 时生效。</summary>
+    /// <summary>流式输出选项</summary>
     public StreamOptions? StreamOptions { get; set; }
 
-    /// <summary>角色扮演专属选项（非 OpenAI 标准参数）：人设与真实时间感知。</summary>
+    /// <summary>角色扮演专属选项（非 OpenAI 标准参数）</summary>
     public CharacterOptions? CharacterOptions { get; set; }
 
     /// <summary>序列化为可直接作为 HTTP 请求体的 JSON。</summary>
     public string ToJson() => CharacterJson.Serialize(this);
 
-    /// <summary>从 JSON 还原请求对象（便于回放/调试）。</summary>
+    /// <summary>从 JSON 还原请求对象。</summary>
     public static ChatRequest? FromJson(string json) => CharacterJson.Deserialize<ChatRequest>(json);
 }
 
 /// <summary>stream_options 参数：控制流式输出的附加行为。</summary>
 public sealed class StreamOptions
 {
-    /// <summary>是否在最后一个数据块中附带 Token 用量统计（该块 choices 为空数组），默认 false。</summary>
+    /// <summary>是否在最后一个数据块中附带 Token 用量统计（该块 choices 为空数组），默认 false</summary>
     public bool? IncludeUsage { get; set; }
 }
 
@@ -112,36 +106,36 @@ public sealed class CharacterOptions
     /// <summary>角色人设文本。启用真实时间功能时，原 system 消息中的人设内容需迁移到这里。</summary>
     public string? Profile { get; set; }
 
-    /// <summary>是否启用真实时间，默认 false。开启后模型可感知当前日期与时间（不支持 Responses API）。</summary>
+    /// <summary>是否启用真实时间，默认 false。开启后模型可感知当前日期与时间（不支持 Responses API和兼容模式）</summary>
     public bool? EnableRealtime { get; set; }
 }
 
 /// <summary>
-/// 一条对话消息。content 支持两种形态：纯文本字符串，或内容块数组（只有数组形态能携带 cache_control）。
+/// 对话消息，支持两种形态：纯文本字符串，或内容块数组，只有数组能显式使用缓存
 /// 序列化/反序列化由 <see cref="ChatMessageConverter"/> 处理两种形态的互转。
 /// </summary>
 [JsonConverter(typeof(ChatMessageConverter))]
 public sealed class ChatMessage
 {
-    /// <summary>消息角色：system（角色设定/补充信息）、user（用户或其他群聊成员）、assistant（模型扮演的角色）。</summary>
+    /// <summary>消息角色、user、assistant。</summary>
     public string Role { get; set; } = "";
 
-    /// <summary>纯文本内容。与 <see cref="ContentParts"/> 二选一；普通对话直接用这个即可。</summary>
+    /// <summary>纯文本内容。与 <see cref="ContentParts"/> 二选一</summary>
     public string? Content { get; set; }
 
-    /// <summary>内容块数组形态。需要在消息上打 cache_control 显式缓存标记时使用。</summary>
+    /// <summary>内容块数组形态</summary>
     public List<ContentPart>? ContentParts { get; set; }
 
-    /// <summary>前缀续写标记。true 表示本条 assistant 消息是未完成的开头（如"角色名："），模型会接着往下写；用于群聊和连续响应。</summary>
+    /// <summary>前缀续写标记。true 表示本条 assistant 消息是未完成的开头</summary>
     public bool? Partial { get; set; }
 
-    /// <summary>创建 system 消息（角色设定；也可在最后一条 user 消息前插入一次性补充信息以提高缓存命中率）。</summary>
+    /// <summary>创建 system 消息</summary>
     public static ChatMessage System(string text) => new() { Role = "system", Content = text };
 
-    /// <summary>创建 user 消息（用户输入；群聊场景中其他参与者也是 user，内容需以"名字："开头）。</summary>
+    /// <summary>创建 user 消息</summary>
     public static ChatMessage User(string text) => new() { Role = "user", Content = text };
 
-    /// <summary>创建 assistant 消息（模型回复；也可用作开场白）。</summary>
+    /// <summary>创建 assistant 消息</summary>
     public static ChatMessage Assistant(string text) => new() { Role = "assistant", Content = text };
 
     /// <summary>创建带 partial=true 的 assistant 前缀消息，引导模型从"角色名："之后继续生成。</summary>
@@ -150,8 +144,8 @@ public sealed class ChatMessage
     /// <summary>返回本消息的副本，并在内容块上打 cache_control=ephemeral 标记：从 messages 开头到该消息的全部内容会形成一个显式缓存块。</summary>
     public ChatMessage WithCacheControl()
     {
-        var parts = ContentParts ?? [new ContentPart { Text = Content ?? "" }];
-        var copy = parts.Select(p => new ContentPart { Type = p.Type, Text = p.Text, CacheControl = p.CacheControl }).ToList();
+        List<ContentPart> parts = ContentParts ?? [new ContentPart { Text = Content ?? "" }];
+        List<ContentPart> copy = parts.Select(p => new ContentPart { Type = p.Type, Text = p.Text, CacheControl = p.CacheControl }).ToList();
         copy[^1].CacheControl = new CacheControl();
         return new ChatMessage { Role = Role, ContentParts = copy, Partial = Partial };
     }
@@ -182,7 +176,7 @@ public sealed class ChatMessageConverter : JsonConverter<ChatMessage>
 {
     public override ChatMessage Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var msg = new ChatMessage();
+        ChatMessage msg = new ChatMessage();
         while (reader.Read())
         {
             if (reader.TokenType == JsonTokenType.EndObject) break;

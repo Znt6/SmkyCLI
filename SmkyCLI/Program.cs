@@ -1,7 +1,8 @@
+using System.CommandLine;
 using System.Drawing;
 using System.Runtime.InteropServices.JavaScript;
 
-namespace SmkyUi;
+namespace SmkyCLI;
 
 class Program
 {
@@ -17,16 +18,20 @@ class Program
         if (character is null) return;
 
         // 请求模板
-        var requestTemplate = SmkyUtils.CreateRequestTemplate(config);
+        ChatRequest requestTemplate = SmkyUtils.CreateRequestTemplate(config);
 
         using SmkyChat chat = new SmkyChat(config, character, requestTemplate);
 
         //System.CommandLine解析执行
-        var state = new CommandState();
-        var root = SmkyCommands.BuildRoot(config, chat, state);
+        CommandState state = new CommandState();
+        RootCommand root = SmkyCommands.BuildRoot(config, chat, state);
 
         Console.WriteLine($"加载配置 -> {Path.GetFullPath(ConfigPath)}（模型：{config.Model}）");
         Console.WriteLine($"加载角色 -> {Path.GetFullPath(CharacterConfigPath)}");
+        if (config.Model != SmkyChat.QwenFlashCharacterModel)
+        {
+            Tool.PrintColorLine("当前为OpenAiApi兼容模式不支持联网搜索和真实时间", ConsoleColor.Yellow);
+        }
         Console.WriteLine("输入/exit退出");
 
         // 主循环
