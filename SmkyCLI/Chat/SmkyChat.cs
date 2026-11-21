@@ -40,20 +40,20 @@ public class SmkyChat : IDisposable
     /// </summary>
     /// <param name="message">用户输入信息</param>
     /// <returns>角色回复文本输入为空时返回null</returns>
-    public async Task<String?> SendMessageToModelAsync(String message)
+    public async Task<String?> SendMessageToModelAsync(String message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(message)) return null;
 
         LastUsage = null;
-        await CompactHistoryIfFullAsync();
+        await CompactHistoryIfFullAsync(cancellationToken);
         DateTimeOffset now = DateTimeOffset.Now;
         (ChatRequest request, ChatMessage userMsg) = BuildRequest(message, now);
 
         using StringContent body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
-        using HttpResponseMessage resp = await GetHttpClient().PostAsync("chat/completions", body);
+        using HttpResponseMessage resp = await GetHttpClient().PostAsync("chat/completions", body, cancellationToken);
         resp.EnsureSuccessStatusCode();
 
-        ChatResponse result = ChatResponse.FromJson(await resp.Content.ReadAsStringAsync())
+        ChatResponse result = ChatResponse.FromJson(await resp.Content.ReadAsStringAsync(cancellationToken))
                      ?? throw new InvalidOperationException("响应反序列化失败");
         string? reply = result.FirstText;
         LastUsage = result.Usage;
@@ -162,6 +162,7 @@ public class SmkyChat : IDisposable
         int maxHistory = _appConfig.MaxHistoryMessages;
         if (maxHistory <= 0 || _history.Count < Math.Max(maxHistory, 2)) return;
 
+        Tool.PrintColorLine("上下文压缩开始，这可能需要一点时间，不过正常情况不会超过100s", Tool.Info);
         // 调低上限或上限过小时多选一些，确保替换摘要后不会继续超过上限。
         int selectedCount = Math.Min(_history.Count,
             Math.Max(_history.Count / 2, _history.Count - maxHistory + 2));
@@ -174,10 +175,18 @@ public class SmkyChat : IDisposable
         List<ChatMessage> selected = _history.Take(selectedCount).ToList();
         string? summary = await CreateSummaryAsync(selected, cancellationToken);
         if (string.IsNullOrWhiteSpace(summary))
-            throw new InvalidOperationException("上下文摘要为空，未清理原历史");
+        {
+            Tool.PrintColorLine("Warn >> 失败的上下文压缩", Tool.Warning);
+            int drop = _history.Count - maxHistory;
+            if (drop < _history.Count && _history[drop].Role == "assistant") drop++;
+            if (drop > 0) _history.RemoveRange(0, drop);
+            Tool.PrintColorLine("Warn >> 已回退至滚动跟新，清除最后一轮对话", Tool.Warning);
+            return;
+        }
 
         _history.RemoveRange(0, selectedCount);
         _history.Insert(0, ChatMessage.System($"【历史对话摘要】\n{summary.Trim()}"));
+        Tool.PrintColorLine("上下文压缩成功", Tool.Success);
     }
 
     /// <summary>使用独立请求整理选中的历史避免摘要过程递归触发上下文压缩。</summary>
@@ -208,13 +217,26 @@ public class SmkyChat : IDisposable
             Temperature = 0.2,
             EnableSearch = IsQwenFlashCharacter ? false : null
         };
+        
+        try
+        {
+            using StringContent body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = await GetHttpClient().PostAsync("chat/completions", body, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            ChatResponse result = ChatResponse.FromJson(await response.Content.ReadAsStringAsync(cancellationToken));
+            return result.FirstText;
+        }
+        catch (Exception e)
+        {
+            Tool.PrintColorLine("""
+                                Err >> 失败的上下文压缩
+                                可能是返回字段错误或网络问题
+                                详细错误为:
+                                """ + $"\n{e.ToString()}",
+                Tool.Error);
 
-        using StringContent body = new StringContent(request.ToJson(), Encoding.UTF8, "application/json");
-        using HttpResponseMessage response = await GetHttpClient().PostAsync("chat/completions", body, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        ChatResponse result = ChatResponse.FromJson(await response.Content.ReadAsStringAsync(cancellationToken))
-                     ?? throw new InvalidOperationException("上下文摘要响应反序列化失败");
-        return result.FirstText;
+            return null;
+        }
     }
 
     /// <summary>清除多轮对话历史，摘要与缓存的 system 前缀，下一轮从全新上下文开始。</summary>

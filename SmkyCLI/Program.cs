@@ -1,7 +1,4 @@
 using System.CommandLine;
-using System.Drawing;
-using System.Runtime.InteropServices.JavaScript;
-
 namespace SmkyCLI;
 
 class Program
@@ -30,14 +27,14 @@ class Program
         Console.WriteLine($"加载角色 -> {Path.GetFullPath(CharacterConfigPath)}");
         if (config.Model != SmkyChat.QwenFlashCharacterModel)
         {
-            Tool.PrintColorLine("当前为OpenAiApi兼容模式不支持联网搜索和真实时间", ConsoleColor.Yellow);
+            Tool.PrintColorLine("当前为OpenAiApi兼容模式不支持联网搜索和真实时间", Tool.Warning);
         }
-        Console.WriteLine("输入/exit退出");
+        Console.WriteLine("输入/exit退出\n按下Ctrl+C(苹果用户为Cmd+C)退出");
 
         // 主循环
         while (!state.ExitRequested)
         {
-            Tool.PrintColor("\nuser -> ", Color.FromArgb(unchecked((int)0xFF9999FF)));
+            Tool.PrintColor("\nuser -> ", Tool.UserPrompt);
             string? input = Console.ReadLine();
             if (input is null) break;
 
@@ -59,18 +56,37 @@ class Program
 
             #region AI输出
 
-            Tool.PrintColor($"{(String.IsNullOrEmpty(character.Name) ? "ai" : character.Name)}: ",
-                Color.FromArgb(unchecked((int)0xFF66CCFF)));
-            // ai输出
-            if (state.IsStream) await SmkyUtils.PrintStreamAsync(chat, input);
-            else await SmkyUtils.PrintNonStreamAsync(chat, input);
+            using CancellationTokenSource cts = new();
+            ConsoleCancelEventHandler handler = (_, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+            Console.CancelKeyPress += handler;
+            
+            try
+            {
+                Tool.PrintColor($"{(String.IsNullOrEmpty(character.Name) ? "ai" : character.Name)}: ",
+                    Tool.AiName);
+                // ai输出
+                if (state.IsStream) await SmkyUtils.PrintStreamAsync(chat, input, cts.Token);
+                else await SmkyUtils.PrintNonStreamAsync(chat, input, cts.Token);
 
-            // token用量输出
-            if (state.IsShowToken && chat.LastUsage is { } usage)
-                Tool.PrintColorLine($"[总计: {usage.TotalTokens}] >> [输入: {usage.PromptTokens}] >> " +
-                                    $"[输出: {usage.CompletionTokens}] >> " +
-                                    $"[命中: {usage.PromptTokensDetails?.CachedTokens.ToString() ?? "服务端未返回"}]"
-                    ,  Color.FromArgb(unchecked((int)0xFF666666)));
+                // token用量输出
+                if (state.IsShowToken && chat.LastUsage is { } usage)
+                    Tool.PrintColorLine($"[总计: {usage.TotalTokens}] >> [输入: {usage.PromptTokens}] >> " +
+                                        $"[输出: {usage.CompletionTokens}] >> " +
+                                        $"[命中: {usage.PromptTokensDetails?.CachedTokens.ToString() ?? "服务端未返回"}]"
+                        , Tool.Muted);
+            }
+            catch (Exception e) when (cts.IsCancellationRequested)
+            {
+                Tool.PrintColorLine("被用户取消的单次对话", Tool.Info);
+            }
+            finally
+            {
+                Console.CancelKeyPress -= handler;
+            }
 
             #endregion
         }

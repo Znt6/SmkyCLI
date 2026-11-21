@@ -34,9 +34,9 @@ public static class SmkyUtils
                 Model = "qwen-flash-character"
             };
             File.WriteAllText(path, JsonSerializer.Serialize(template, IndentedOptions.GetTypeInfo(typeof(SmkyConfig))));
-            Console.WriteLine($"smkyconfig配置文件不存在，已从默认模板创建，位置为：{Path.GetFullPath(path)}");
-            Console.WriteLine("请填写 APIKey 后重新运行");
-            Console.WriteLine("按下回车后继续");
+            Tool.PrintColorLine($"smkyconfig配置文件不存在，已从默认模板创建，位置为：{Path.GetFullPath(path)}", Tool.Info);
+            Tool.PrintColorLine("请填写 APIKey 后重新运行", Tool.Info);
+            Tool.PrintColorLine("按下回车后继续", Tool.Info);
             Console.ReadLine();
             return null;
         }
@@ -48,13 +48,13 @@ public static class SmkyUtils
         }
         catch (JsonException ex)
         {
-            Console.WriteLine($"smkyconfig解析失败：{ex.Message}");
+            Tool.PrintColorLine($"smkyconfig解析失败：{ex.Message}", Tool.Error);
             return null;
         }
 
         if (config is null || string.IsNullOrWhiteSpace(config.APIKey) || config.APIKey == ApiKeyPlaceholder)
         {
-            Console.WriteLine($"请先在配置文件中填写有效的 api_key：{Path.GetFullPath(path)}");
+            Tool.PrintColorLine($"请先在配置文件中填写有效的 api_key：{Path.GetFullPath(path)}", Tool.Error);
             return null;
         }
         
@@ -142,25 +142,25 @@ public static class SmkyUtils
                 any = true;
                 Console.Write(delta);
             }
-            Console.WriteLine(any ? "" : "(模型未回复)");
+            Console.WriteLine(any ? "" : "(未回复)");
         }
-        catch (Exception ex)
+        catch (Exception ex) when(!cancellationToken.IsCancellationRequested)
         {
-            Console.WriteLine($"[请求失败] {ex.Message}");
+            Tool.PrintColorLine($"失败的请求\n{ex.Message}", Tool.Error);
         }
     }
 
     /// <summary>非流式打印回复：等待完整回复后一次性输出；请求异常时打印错误、不中断调用方循环。</summary>
-    public static async Task PrintNonStreamAsync(SmkyChat chat, string input)
+    public static async Task PrintNonStreamAsync(SmkyChat chat, string input, CancellationToken cancellationToken = default)
     {
         try
         {
-            string? reply = await chat.SendMessageToModelAsync(input);
-            Console.WriteLine(reply ?? "(模型未回复)");
+            string? reply = await chat.SendMessageToModelAsync(input, cancellationToken);
+            Console.WriteLine(reply ?? "(未回复)");
         }
-        catch (Exception ex)
+        catch (Exception ex) when(!cancellationToken.IsCancellationRequested)
         {
-            Console.WriteLine($"[请求失败] {ex.Message}");
+            Tool.PrintColorLine($"失败的请求\n{ex.Message}", Tool.Error);
         }
     }
 }

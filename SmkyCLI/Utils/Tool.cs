@@ -6,6 +6,14 @@ namespace SmkyCLI;
 /// <summary>通用静态工具类：存放与业务无关的小工具函数（控制台彩色打印等）。</summary>
 public static class Tool
 {
+    public static readonly Color AiName = Color.FromArgb(0x66, 0xCC, 0xFF);
+    public static readonly Color UserPrompt = Color.FromArgb(0x99, 0x99, 0xFF);
+    public static readonly Color Info = Color.FromArgb(0xEE, 0x82, 0xEE);
+    public static readonly Color Error = Color.FromArgb(0xEE, 0x00, 0x00);
+    public static readonly Color Warning = Color.FromArgb(0xFF, 0x88, 0x00);
+    public static readonly Color Success = Color.FromArgb(0x76, 0xC0, 0x43);
+    public static readonly Color Muted = Color.FromArgb(0x66, 0x66, 0x66);
+
     /// <summary>打印彩色文字（不换行）：临时切换控制台前景/背景色，输出后无论成败都恢复原色。</summary>
     /// <param name="text">要输出的文字</param>
     /// <param name="foreground">前景色</param>

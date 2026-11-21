@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
+    
     <PropertyGroup>
+        <Version>0.1.2-a.b20261121</Version>
+        
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -18,9 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="11.0.0" />
       <PackageReference Include="System.CommandLine" Version="2.0.0" />
-      <PackageReference Include="Terminal.Gui" Version="2.5.0" />
     </ItemGroup>
 
     <!-- 配置文件源码中归入 Configs 目录，通过 Link 仍复制到输出目录根部，运行时相对路径不变 -->
@@ -33,6 +33,9 @@
         <Link>characterconfig.json</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Doc\" />
     </ItemGroup>
 
 </Project>

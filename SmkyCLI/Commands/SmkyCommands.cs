@@ -3,7 +3,6 @@ using System.Globalization;
 
 namespace SmkyCLI;
 
-// TODO: 摘要失败会阻断对话
 // TODO: 流式输出没有超时保护
 
 /// <summary>REPL 命令运行状态：主循环与命令回调共享（闭包无法捕获 ref 局部变量，改用对象承载）。</summary>
