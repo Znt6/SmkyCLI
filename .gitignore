@@ -1,0 +1,17 @@
+bin/
+obj/
+.idea/
+.vs/
+*.DotSettings.user
+*.user
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+
+# 运行时配置文件含 API Key，不提交（模板见 SmkyCLI/Configs/smkyconfig.json）
+/SmkyCLI/smkyconfig.json
+/smkyconfig.json
+
+# 长期记忆落盘文件含对话摘要，不提交
+smky-memory.json
+smky-memory.json.tmp

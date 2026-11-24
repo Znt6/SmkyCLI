@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    
+    <PropertyGroup>
+        <Version>0.1.2-a.b20261121</Version>
+        
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        
+        <PublishAot>false</PublishAot>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <StripSymbols>true</StripSymbols>
+        
+        <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <TrimmerRootAssembly Include="$(AssemblyName)" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="System.CommandLine" Version="2.0.0" />
+    </ItemGroup>
+
+    <!-- 配置文件源码中归入 Configs 目录，通过 Link 仍复制到输出目录根部，运行时相对路径不变 -->
+    <ItemGroup>
+      <None Update="Configs\smkyconfig.json">
+        <Link>smkyconfig.json</Link>
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </None>
+      <None Update="Configs\characterconfig.json">
+        <Link>characterconfig.json</Link>
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Doc\" />
+    </ItemGroup>
+
+</Project>
